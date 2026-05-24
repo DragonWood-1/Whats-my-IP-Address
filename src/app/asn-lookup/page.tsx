@@ -10,21 +10,30 @@ export default function ASNLookup() {
 
   async function lookup() {
     if (!query.trim()) return;
-    setLoading(true);
-    setError("");
-    setData(null);
+    setLoading(true); setError(""); setData(null);
     try {
-      const res = await fetch(`/api/asn?q=${encodeURIComponent(query.trim())}`);
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      setData(json);
-      setMode(/^(as)?\d+$/i.test(query.trim()) ? "asn" : "ip");
+      const isASN = /^(as)?\d+$/i.test(query.trim());
+      if (isASN) {
+        const asnNum = query.trim().replace(/^as/i, "");
+        const res = await fetch(`https://api.bgpview.io/asn/${asnNum}`, { headers: { Accept: "application/json" } });
+        if (!res.ok) throw new Error("ASN not found");
+        const json = await res.json();
+        setData(json);
+        setMode("asn");
+      } else {
+        const res = await fetch(`https://ipwho.is/${encodeURIComponent(query.trim())}`);
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || "Lookup failed");
+        setData(json);
+        setMode("ip");
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "ASN lookup failed");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
+
+  const conn = data?.connection as Record<string, unknown> | undefined;
+  const asnData = (data?.data || data) as Record<string, unknown> | undefined;
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 24px 80px" }}>
@@ -41,75 +50,45 @@ export default function ASNLookup() {
 
       <div className="cyber-card" style={{ padding: 24, marginBottom: 24 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <input
-            className="cyber-input"
-            style={{ flex: 1, minWidth: 200 }}
-            placeholder="Enter ASN (e.g. AS15169) or IP address"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && lookup()}
-          />
-          <button className="cyber-btn" onClick={lookup} disabled={loading}>
-            {loading ? "Looking up..." : "Lookup ASN"}
-          </button>
+          <input className="cyber-input" style={{ flex: 1, minWidth: 200 }} placeholder="Enter ASN (e.g. AS15169) or IP address" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookup()} />
+          <button className="cyber-btn" onClick={lookup} disabled={loading}>{loading ? "Looking up..." : "Lookup ASN"}</button>
         </div>
       </div>
 
-      {error && (
-        <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "14px 20px", color: "#ef4444", marginBottom: 24 }}>
-          ⚠️ {error}
-        </div>
-      )}
-
-      {loading && (
-        <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>
-          <div className="spinner" style={{ margin: "0 auto 16px" }} />
-          <div>Querying ASN database...</div>
-        </div>
-      )}
+      {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "14px 20px", color: "#ef4444", marginBottom: 24 }}>⚠️ {error}</div>}
+      {loading && <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}><div className="spinner" style={{ margin: "0 auto 16px" }} /><div>Querying ASN database...</div></div>}
 
       {data && !loading && (
         <div className="cyber-card" style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: "16px 24px", borderBottom: "1px solid #1e3a5f" }}>
-            <h2 style={{ color: "#e2e8f0", fontSize: 16, fontWeight: 700 }}>ASN Information</h2>
-          </div>
+          <div style={{ padding: "16px 24px", borderBottom: "1px solid #1e3a5f" }}><h2 style={{ color: "#e2e8f0", fontSize: 16, fontWeight: 700 }}>ASN Information</h2></div>
           <table className="data-table">
             <tbody>
               {mode === "ip" ? (
-                <>
-                  {[
-                    ["IP Address", data.query as string, "#00d4ff"],
-                    ["ASN", data.as as string, "#7c3aed"],
-                    ["AS Name", data.asname as string],
-                    ["ISP", data.isp as string],
-                    ["Organization", data.org as string],
-                    ["Country", data.country as string],
-                  ].filter(([, v]) => v).map(([label, value, color]) => (
-                    <tr key={label as string}>
-                      <td style={{ color: "#475569", fontWeight: 600, fontSize: 12, textTransform: "uppercase", width: 160 }}>{label as string}</td>
-                      <td style={{ color: (color as string) || "#e2e8f0", fontFamily: "monospace", fontSize: 14 }}>{value as string}</td>
-                    </tr>
-                  ))}
-                </>
+                [
+                  ["IP Address", data.ip as string, "#00d4ff"],
+                  ["ASN", conn?.asn ? `AS${conn.asn}` : undefined, "#7c3aed"],
+                  ["ISP", conn?.isp as string],
+                  ["Organization", conn?.org as string],
+                  ["Country", data.country as string],
+                ].filter(([, v]) => v).map(([label, value, color]) => (
+                  <tr key={label as string}>
+                    <td style={{ color: "#475569", fontWeight: 600, fontSize: 12, textTransform: "uppercase", width: 160 }}>{label as string}</td>
+                    <td style={{ color: (color as string) || "#e2e8f0", fontFamily: "monospace", fontSize: 14 }}>{value as string}</td>
+                  </tr>
+                ))
               ) : (
-                <>
-                  {(() => {
-                    const d = (data.data || data) as Record<string, unknown>;
-                    return [
-                      ["ASN", d.asn as string, "#7c3aed"],
-                      ["Name", d.name as string],
-                      ["Description", d.description_short as string],
-                      ["Country", (d.country_code as string)],
-                      ["Email", d.email_contacts as string],
-                      ["Website", d.website as string],
-                    ].filter(([, v]) => v).map(([label, value, color]) => (
-                      <tr key={label as string}>
-                        <td style={{ color: "#475569", fontWeight: 600, fontSize: 12, textTransform: "uppercase", width: 160 }}>{label as string}</td>
-                        <td style={{ color: (color as string) || "#e2e8f0", fontFamily: "monospace", fontSize: 14 }}>{value as string}</td>
-                      </tr>
-                    ));
-                  })()}
-                </>
+                [
+                  ["ASN", asnData?.asn ? `AS${asnData.asn}` : undefined, "#7c3aed"],
+                  ["Name", asnData?.name as string],
+                  ["Description", asnData?.description_short as string],
+                  ["Country", asnData?.country_code as string],
+                  ["Website", asnData?.website as string],
+                ].filter(([, v]) => v).map(([label, value, color]) => (
+                  <tr key={label as string}>
+                    <td style={{ color: "#475569", fontWeight: 600, fontSize: 12, textTransform: "uppercase", width: 160 }}>{label as string}</td>
+                    <td style={{ color: (color as string) || "#e2e8f0", fontFamily: "monospace", fontSize: 14 }}>{value as string}</td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

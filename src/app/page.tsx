@@ -1,5 +1,6 @@
+"use client";
 import Link from "next/link";
-import { headers } from "next/headers";
+import { useEffect, useState } from "react";
 
 const tools = [
   { icon: "🌐", label: "IP Lookup", desc: "Get detailed info about any IP address", href: "/ip-lookup", color: "#00d4ff" },
@@ -20,17 +21,15 @@ const tools = [
   { icon: "🛡️", label: "SSL Checker", desc: "Analyze SSL/TLS certificates", href: "/ssl-checker", color: "#ef4444" },
 ];
 
-async function getMyIP() {
-  const h = await headers();
-  return (
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    h.get("x-real-ip") ||
-    "—"
-  );
-}
+export default function Home() {
+  const [myIP, setMyIP] = useState("Detecting...");
 
-export default async function Home() {
-  const myIP = await getMyIP();
+  useEffect(() => {
+    fetch("https://ipwho.is/")
+      .then((r) => r.json())
+      .then((d) => setMyIP(d.ip || "Unknown"))
+      .catch(() => setMyIP("Unknown"));
+  }, []);
 
   return (
     <div>
@@ -84,9 +83,7 @@ export default async function Home() {
             <Link key={tool.href} href={tool.href} style={{ textDecoration: "none" }}>
               <div className="cyber-card" style={{ padding: 24, cursor: "pointer", height: "100%" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-                  <div style={{ fontSize: 28, lineHeight: 1, minWidth: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {tool.icon}
-                  </div>
+                  <div style={{ fontSize: 28, lineHeight: 1, minWidth: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>{tool.icon}</div>
                   <div>
                     <div style={{ color: tool.color, fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{tool.label}</div>
                     <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.5 }}>{tool.desc}</div>

@@ -1,37 +1,60 @@
 "use client";
 import { useState } from "react";
 
-interface PortResult {
-  port: number;
-  service: string;
-  status: "open" | "closed";
+const COMMON_PORTS: Record<number, string> = {
+  21: "FTP", 22: "SSH", 23: "Telnet", 25: "SMTP", 53: "DNS",
+  80: "HTTP", 110: "POP3", 143: "IMAP", 443: "HTTPS", 445: "SMB",
+  587: "SMTP/TLS", 993: "IMAPS", 995: "POP3S", 3306: "MySQL",
+  3389: "RDP", 5432: "PostgreSQL", 8080: "HTTP-Alt", 8443: "HTTPS-Alt",
+};
+
+async function probePort(host: string, port: number): Promise<"open" | "closed"> {
+  // For HTTPS ports, try a fetch; for others, attempt an image load trick
+  const isHttps = port === 443 || port === 8443;
+  const isHttp = port === 80 || port === 8080;
+  if (isHttps || isHttp) {
+    const proto = isHttps ? "https" : "http";
+    try {
+      await fetch(`${proto}://${host}:${port}`, { method: "HEAD", mode: "no-cors", signal: AbortSignal.timeout(3000) });
+      return "open";
+    } catch { return "closed"; }
+  }
+  // For non-HTTP ports, use WebSocket probe
+  return new Promise((resolve) => {
+    try {
+      const ws = new WebSocket(`wss://${host}:${port}`);
+      const timer = setTimeout(() => { ws.close(); resolve("closed"); }, 2000);
+      ws.onopen = () => { clearTimeout(timer); ws.close(); resolve("open"); };
+      ws.onerror = () => { clearTimeout(timer); resolve("closed"); };
+    } catch { resolve("closed"); }
+  });
 }
 
 export default function PortScanner() {
   const [host, setHost] = useState("");
-  const [data, setData] = useState<{ host: string; results: PortResult[]; openCount: number; totalScanned: number } | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<{ port: number; service: string; status: "open" | "closed" }[]>([]);
+  const [scanning, setScanning] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   async function scan() {
     if (!host.trim()) return;
-    setLoading(true);
-    setError("");
-    setData(null);
-    try {
-      const res = await fetch(`/api/port-scan?host=${encodeURIComponent(host.trim())}&ports=common`);
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      setData(json);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Port scan failed");
-    } finally {
-      setLoading(false);
+    setScanning(true); setResults([]); setProgress(0);
+    const domain = host.trim().replace(/^https?:\/\//, "").split("/")[0];
+    const ports = Object.keys(COMMON_PORTS).map(Number);
+    const all: typeof results = [];
+
+    for (let i = 0; i < ports.length; i++) {
+      const port = ports[i];
+      const status = await probePort(domain, port);
+      all.push({ port, service: COMMON_PORTS[port], status });
+      setResults([...all]);
+      setProgress(Math.round(((i + 1) / ports.length) * 100));
     }
+    setScanning(false);
   }
 
-  const openPorts = data?.results.filter((r) => r.status === "open") || [];
-  const closedPorts = data?.results.filter((r) => r.status === "closed") || [];
+  const openPorts = results.filter((r) => r.status === "open");
+  const closedPorts = results.filter((r) => r.status === "closed");
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 24px 80px" }}>
@@ -40,7 +63,7 @@ export default function PortScanner() {
           <div style={{ fontSize: 40 }}>🚪</div>
           <div>
             <h1 style={{ color: "#e2e8f0", fontSize: 28, fontWeight: 800, letterSpacing: -0.5, marginBottom: 4 }}>Port Scanner</h1>
-            <p style={{ color: "#94a3b8", fontSize: 14 }}>Scan common ports on any host. Checks 23 common ports including SSH, HTTP, HTTPS, FTP, RDP, and more.</p>
+            <p style={{ color: "#94a3b8", fontSize: 14 }}>Probe common ports on any host from your browser</p>
           </div>
         </div>
         <div style={{ height: 2, background: "linear-gradient(90deg, #f59e0b, transparent)", borderRadius: 2 }} />
@@ -48,44 +71,31 @@ export default function PortScanner() {
 
       <div className="cyber-card" style={{ padding: 24, marginBottom: 24 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <input
-            className="cyber-input"
-            style={{ flex: 1, minWidth: 200 }}
-            placeholder="Enter hostname or IP (e.g. example.com)"
-            value={host}
-            onChange={(e) => setHost(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && scan()}
-          />
-          <button className="cyber-btn" onClick={scan} disabled={loading}>
-            {loading ? "Scanning..." : "Scan Ports"}
-          </button>
+          <input className="cyber-input" style={{ flex: 1, minWidth: 200 }} placeholder="Enter hostname (e.g. example.com)" value={host} onChange={(e) => setHost(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !scanning && scan()} />
+          <button className="cyber-btn" onClick={scan} disabled={scanning}>{scanning ? `Scanning ${progress}%` : "Scan Ports"}</button>
         </div>
-        <p style={{ color: "#475569", fontSize: 12, marginTop: 12 }}>
-          ⚠️ Only scan hosts you own or have permission to test.
-        </p>
+        <p style={{ color: "#475569", fontSize: 12, marginTop: 12 }}>⚠️ Only scan hosts you own or have explicit permission to test. Browser-based probing checks HTTP/HTTPS ports most reliably.</p>
       </div>
 
-      {error && (
-        <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "14px 20px", color: "#ef4444", marginBottom: 24 }}>
-          ⚠️ {error}
+      {scanning && (
+        <div className="cyber-card" style={{ padding: 20, marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ color: "#94a3b8", fontSize: 13 }}>Scanning ports...</span>
+            <span style={{ color: "#00d4ff", fontSize: 13, fontFamily: "monospace" }}>{progress}%</span>
+          </div>
+          <div style={{ height: 4, background: "#1e3a5f", borderRadius: 2 }}>
+            <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #0ea5e9, #00d4ff)", borderRadius: 2, transition: "width 0.3s" }} />
+          </div>
         </div>
       )}
 
-      {loading && (
-        <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>
-          <div className="spinner" style={{ margin: "0 auto 16px" }} />
-          <div style={{ fontFamily: "monospace", fontSize: 13 }}>Scanning ports... this may take 10-20 seconds</div>
-        </div>
-      )}
-
-      {data && !loading && (
+      {results.length > 0 && (
         <>
-          {/* Summary */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 24 }}>
             {[
-              { label: "Open Ports", value: data.openCount, color: "#10b981" },
-              { label: "Closed Ports", value: closedPorts.length, color: "#475569" },
-              { label: "Total Scanned", value: data.totalScanned, color: "#00d4ff" },
+              { label: "Open Ports", value: openPorts.length, color: "#10b981" },
+              { label: "Closed", value: closedPorts.length, color: "#475569" },
+              { label: "Scanned", value: results.length, color: "#00d4ff" },
             ].map((s) => (
               <div key={s.label} className="cyber-card" style={{ padding: 20, textAlign: "center" }}>
                 <div style={{ color: s.color, fontSize: 28, fontWeight: 800, fontFamily: "monospace" }}>{s.value}</div>
@@ -94,7 +104,6 @@ export default function PortScanner() {
             ))}
           </div>
 
-          {/* Open ports */}
           {openPorts.length > 0 && (
             <div className="cyber-card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
               <div style={{ padding: "16px 24px", borderBottom: "1px solid #1e3a5f", display: "flex", alignItems: "center", gap: 12 }}>
@@ -116,12 +125,9 @@ export default function PortScanner() {
             </div>
           )}
 
-          {/* Closed ports */}
-          <div className="cyber-card" style={{ padding: 0, overflow: "hidden" }}>
-            <div style={{ padding: "16px 24px", borderBottom: "1px solid #1e3a5f" }}>
-              <h2 style={{ color: "#94a3b8", fontSize: 16, fontWeight: 700 }}>Closed / Filtered Ports</h2>
-            </div>
-            <div style={{ padding: 20, display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div className="cyber-card" style={{ padding: 20 }}>
+            <div style={{ color: "#94a3b8", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Closed / Filtered</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {closedPorts.map((r) => (
                 <div key={r.port} style={{ background: "rgba(0,0,0,0.3)", border: "1px solid #1e3a5f", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontFamily: "monospace" }}>
                   <span style={{ color: "#475569" }}>{r.port}</span>
