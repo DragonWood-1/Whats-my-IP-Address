@@ -66,7 +66,7 @@ export default function Footer() {
                 IP
               </div>
               <span style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0" }}>
-                Toolkit
+                ip-space.com
               </span>
             </div>
             <p style={{ color: "#475569", fontSize: 13, lineHeight: 1.7 }}>
@@ -192,7 +192,7 @@ export default function Footer() {
           }}
         >
           <p style={{ color: "#475569", fontSize: 13 }}>
-            © {new Date().getFullYear()} IPToolkit. Free network tools for everyone.
+            © {new Date().getFullYear()} ip-space.com. Free network tools for everyone.
           </p>
           <p style={{ color: "#475569", fontSize: 12 }}>
             Results are for informational purposes only.

@@ -11,19 +11,18 @@ export default function GeoIPFinder() {
     if (!ip.trim()) return;
     setLoading(true); setError(""); setData(null);
     try {
-      const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip.trim())}`);
+      const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip.trim())}/json/`);
       const json = await res.json();
-      if (!json.success) throw new Error(json.message || "Lookup failed");
+      if (json.error) throw new Error(json.reason || "Lookup failed");
       setData(json);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "GeoIP lookup failed");
     } finally { setLoading(false); }
   }
 
-  const cc = (data?.country_code as string) || "";
+  const cc = (data?.country as string) || "";
   const flag = cc ? String.fromCodePoint(...cc.toUpperCase().split("").map((c: string) => 0x1f1e6 + c.charCodeAt(0) - 65)) : "";
-  const conn = data?.connection as Record<string, unknown> | undefined;
-  const tz = data?.timezone as Record<string, unknown> | undefined;
+  const isp = (data?.org as string)?.replace(/^AS\d+\s*/, "") || "";
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 24px 80px" }}>
@@ -53,7 +52,7 @@ export default function GeoIPFinder() {
           <div className="cyber-card" style={{ padding: 32, textAlign: "center", marginBottom: 24 }}>
             <div style={{ fontSize: 56, marginBottom: 8 }}>{flag}</div>
             <div style={{ color: "#00ff88", fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
-              {data.city as string && `${data.city}, `}{data.region as string && `${data.region}, `}{data.country as string}
+              {data.city as string && `${data.city}, `}{data.region as string && `${data.region}, `}{data.country_name as string}
             </div>
             <div style={{ color: "#94a3b8", fontFamily: "monospace", fontSize: 14 }}>
               {(data.latitude as number)?.toFixed(4)}°N, {(data.longitude as number)?.toFixed(4)}°E
@@ -67,17 +66,17 @@ export default function GeoIPFinder() {
             <table className="data-table">
               <tbody>
                 {[
-                  ["IP Address", data.ip as string, "#00d4ff"],
-                  ["Country", `${flag} ${data.country} (${data.country_code})`],
-                  ["Region", data.region as string],
-                  ["City", data.city as string],
-                  ["ZIP Code", data.postal as string],
-                  ["Latitude", (data.latitude as number)?.toString()],
-                  ["Longitude", (data.longitude as number)?.toString()],
-                  ["Timezone", tz?.id as string],
-                  ["ISP", conn?.isp as string],
-                  ["Organization", conn?.org as string],
-                  ["ASN", conn?.asn ? `AS${conn.asn}` : undefined],
+                  ["IP Address",  data.ip as string,                                    "#00d4ff"],
+                  ["Country",     `${flag} ${data.country_name} (${data.country})`],
+                  ["Region",      data.region as string],
+                  ["City",        data.city as string],
+                  ["ZIP Code",    data.postal as string],
+                  ["Latitude",    (data.latitude as number)?.toString()],
+                  ["Longitude",   (data.longitude as number)?.toString()],
+                  ["Timezone",    data.timezone as string],
+                  ["ISP",         isp],
+                  ["Organization",data.org as string],
+                  ["ASN",         data.asn as string],
                 ].filter(([, v]) => v).map(([label, value, color]) => (
                   <tr key={label as string}>
                     <td style={{ color: "#475569", fontWeight: 600, fontSize: 12, textTransform: "uppercase", width: 160 }}>{label as string}</td>

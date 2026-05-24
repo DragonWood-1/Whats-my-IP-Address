@@ -25,7 +25,7 @@ export default function Home() {
   const [myIP, setMyIP] = useState("Detecting...");
 
   useEffect(() => {
-    fetch("https://ipwho.is/")
+    fetch("https://ipapi.co/json/")
       .then((r) => r.json())
       .then((d) => setMyIP(d.ip || "Unknown"))
       .catch(() => setMyIP("Unknown"));
@@ -98,7 +98,7 @@ export default function Home() {
       {/* Features */}
       <section style={{ background: "rgba(0,0,0,0.3)", borderTop: "1px solid #1e3a5f", borderBottom: "1px solid #1e3a5f", padding: "64px 24px" }}>
         <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-          <h2 style={{ color: "#e2e8f0", fontSize: 28, fontWeight: 700, textAlign: "center", marginBottom: 48 }}>Why IPToolkit?</h2>
+          <h2 style={{ color: "#e2e8f0", fontSize: 28, fontWeight: 700, textAlign: "center", marginBottom: 48 }}>Why ip-space.com?</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 32 }}>
             {[
               { icon: "⚡", title: "Instant Results", desc: "No waiting. Results appear in seconds using real-time APIs." },

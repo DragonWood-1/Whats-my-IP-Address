@@ -1,54 +1,76 @@
 "use client";
 import { useEffect, useState } from "react";
 
-interface IPWhoData {
+interface GeoData {
   ip: string;
-  type: string;
-  continent: string;
-  country: string;
-  country_code: string;
-  region: string;
+  version: string;
   city: string;
+  region: string;
+  country: string;       // 2-letter code
+  country_name: string;
   postal: string;
   latitude: number;
   longitude: number;
-  connection: { asn: number; org: string; isp: string };
-  timezone: { id: string };
-  security: { proxy: boolean; vpn: boolean; tor: boolean; hosting: boolean };
+  timezone: string;
+  asn: string;           // e.g. "AS15169"
+  org: string;           // e.g. "AS15169 Google LLC"
+  continent_code: string;
+  error?: boolean;
+  detail?: string;
+}
+
+interface SecData {
+  proxy: string;         // "yes" | "no"
+  type: string | null;   // "VPN" | "TOR" | null
 }
 
 export default function WhatIsMyIP() {
-  const [data, setData] = useState<IPWhoData | null>(null);
+  const [geo, setGeo] = useState<GeoData | null>(null);
+  const [sec, setSec] = useState<SecData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("https://ipwho.is/")
+    fetch("https://ipapi.co/json/")
       .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (d: GeoData) => {
+        if (d.error) throw new Error(d.detail || "Failed");
+        setGeo(d);
+        // Best-effort security check
+        try {
+          const sr = await fetch(`https://proxycheck.io/v2/${d.ip}?vpn=1`);
+          const sj = await sr.json();
+          if (sj.status === "ok" && sj[d.ip]) setSec(sj[d.ip] as SecData);
+        } catch { /* ignore */ }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const flag = data?.country_code
-    ? String.fromCodePoint(...data.country_code.toUpperCase().split("").map((c) => 0x1f1e6 + c.charCodeAt(0) - 65))
+  const flag = geo?.country
+    ? String.fromCodePoint(...geo.country.toUpperCase().split("").map((c) => 0x1f1e6 + c.charCodeAt(0) - 65))
     : "";
 
-  const rows: [string, string | undefined, string?][] = data
+  const isVPN   = sec?.type === "VPN";
+  const isTor   = sec?.type === "TOR";
+  const isProxy = sec?.proxy === "yes" && !isVPN && !isTor;
+  const isp     = geo?.org?.replace(/^AS\d+\s*/, "") || "";
+
+  const rows: [string, string | undefined, string?][] = geo
     ? [
-        ["IP Address", data.ip, "#00d4ff"],
-        ["Type", data.type],
-        ["Country", `${flag} ${data.country} (${data.country_code})`],
-        ["Continent", data.continent],
-        ["Region", data.region],
-        ["City", data.city],
-        ["Postal Code", data.postal],
-        ["Coordinates", `${data.latitude}, ${data.longitude}`],
-        ["Timezone", data.timezone?.id],
-        ["ISP", data.connection?.isp],
-        ["Organization", data.connection?.org],
-        ["ASN", data.connection?.asn ? `AS${data.connection.asn}` : undefined],
-        ["VPN/Proxy", data.security?.vpn || data.security?.proxy ? "⚠️ Detected" : "✅ Not detected"],
-        ["Tor Exit Node", data.security?.tor ? "⚠️ Detected" : "✅ No"],
-        ["Hosting/DC", data.security?.hosting ? "Yes (datacenter)" : "No (residential)"],
+        ["IP Address",   geo.ip,                              "#00d4ff"],
+        ["Type",         geo.version],
+        ["Country",      `${flag} ${geo.country_name} (${geo.country})`],
+        ["Continent",    geo.continent_code],
+        ["Region",       geo.region],
+        ["City",         geo.city],
+        ["Postal Code",  geo.postal],
+        ["Coordinates",  `${geo.latitude}, ${geo.longitude}`],
+        ["Timezone",     geo.timezone],
+        ["ISP",          isp],
+        ["Organization", geo.org],
+        ["ASN",          geo.asn],
+        ["VPN/Proxy",    sec ? (isVPN || isProxy ? "⚠️ Detected" : "✅ Not detected") : "—"],
+        ["Tor Exit Node",sec ? (isTor             ? "⚠️ Detected" : "✅ No")          : "—"],
       ]
     : [];
 
@@ -70,24 +92,22 @@ export default function WhatIsMyIP() {
           <div className="spinner" style={{ margin: "0 auto 16px" }} />
           <div>Detecting your IP...</div>
         </div>
-      ) : !data ? (
+      ) : !geo ? (
         <div style={{ textAlign: "center", padding: 40, color: "#ef4444" }}>Failed to detect IP address.</div>
       ) : (
         <>
-          {/* Big IP display */}
           <div className="cyber-card" style={{ padding: "40px 32px", textAlign: "center", marginBottom: 24 }}>
             <div style={{ color: "#475569", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Your Public IP Address</div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "clamp(32px, 6vw, 56px)", fontWeight: 800, color: "#00d4ff", letterSpacing: 3, textShadow: "0 0 40px rgba(0,212,255,0.5)", marginBottom: 16 }}>
-              {data.ip}
+              {geo.ip}
             </div>
-            {data.country && (
+            {geo.country_name && (
               <div style={{ color: "#94a3b8", fontSize: 15 }}>
-                📍 {data.city && `${data.city}, `}{data.region && `${data.region}, `}{data.country}
+                📍 {geo.city && `${geo.city}, `}{geo.region && `${geo.region}, `}{geo.country_name}
               </div>
             )}
           </div>
 
-          {/* Details table */}
           <div className="cyber-card" style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
             <div style={{ padding: "16px 24px", borderBottom: "1px solid #1e3a5f" }}>
               <h2 style={{ color: "#e2e8f0", fontSize: 16, fontWeight: 700 }}>IP Details</h2>
@@ -104,12 +124,10 @@ export default function WhatIsMyIP() {
             </table>
           </div>
 
-          {/* Privacy indicators */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
             {[
-              { label: "VPN / Proxy", detected: data.security?.vpn || data.security?.proxy, icon: data.security?.vpn || data.security?.proxy ? "⚠️" : "✅", msg: data.security?.vpn || data.security?.proxy ? "Detected" : "Not detected", color: data.security?.vpn || data.security?.proxy ? "#f59e0b" : "#10b981" },
-              { label: "Tor Exit Node", detected: data.security?.tor, icon: data.security?.tor ? "🧅" : "✅", msg: data.security?.tor ? "Tor Detected" : "Not Tor", color: data.security?.tor ? "#ef4444" : "#10b981" },
-              { label: "Hosting/Cloud", detected: data.security?.hosting, icon: data.security?.hosting ? "☁️" : "🏠", msg: data.security?.hosting ? "Hosting IP" : "Residential", color: data.security?.hosting ? "#7c3aed" : "#94a3b8" },
+              { label: "VPN / Proxy", icon: isVPN || isProxy ? "⚠️" : "✅", msg: isVPN || isProxy ? "Detected" : sec ? "Not detected" : "Unknown", color: isVPN || isProxy ? "#f59e0b" : "#10b981" },
+              { label: "Tor Exit Node", icon: isTor ? "🧅" : "✅", msg: isTor ? "Tor Detected" : sec ? "Not Tor" : "Unknown", color: isTor ? "#ef4444" : "#10b981" },
             ].map((item) => (
               <div key={item.label} className="cyber-card" style={{ padding: 20, textAlign: "center" }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>{item.icon}</div>

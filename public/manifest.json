@@ -1,6 +1,6 @@
 {
-  "name": "IPToolkit – Network Tools",
-  "short_name": "IPToolkit",
+  "name": "ip-space.com – Network Tools",
+  "short_name": "ip-space",
   "description": "Free IP lookup, DNS checker, Whois, SSL, port scanner and 16+ network tools",
   "start_url": "/",
   "scope": "/",

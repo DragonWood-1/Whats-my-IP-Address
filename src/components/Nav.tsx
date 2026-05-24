@@ -81,7 +81,7 @@ export default function Nav() {
             >
               IP
             </div>
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0", letterSpacing: -0.5 }}>Toolkit</span>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#e2e8f0", letterSpacing: -0.5 }}>ip-space.com</span>
           </Link>
 
           {/* Desktop nav links */}

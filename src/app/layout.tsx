@@ -14,8 +14,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "IPToolkit – Free IP Tools, Lookup & Network Diagnostics",
-    template: "%s | IPToolkit",
+    default: "ip-space.com – Free IP Tools, Lookup & Network Diagnostics",
+    template: "%s | ip-space.com",
   },
   description:
     "Free IP lookup, Whois, DNS checker, port scanner, SSL checker, GeoIP, ASN lookup, subnet calculator and 16+ network tools. Instant results, no registration.",
@@ -27,11 +27,11 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "IPToolkit",
+    title: "ip-space.com",
   },
   openGraph: {
     type: "website",
-    siteName: "IPToolkit",
+    siteName: "ip-space.com",
   },
 };
 
@@ -47,6 +47,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
           rel="stylesheet"
+        />
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4240246726849925"
+          crossOrigin="anonymous"
         />
       </head>
       <body>

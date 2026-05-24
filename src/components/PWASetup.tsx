@@ -80,7 +80,7 @@ export default function PWASetup() {
         IP
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 14 }}>Install IPToolkit</div>
+        <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: 14 }}>Install ip-space.com</div>
         <div style={{ color: "#94a3b8", fontSize: 12 }}>Add to home screen for instant access</div>
       </div>
       <button

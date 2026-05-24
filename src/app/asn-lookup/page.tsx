@@ -21,9 +21,9 @@ export default function ASNLookup() {
         setData(json);
         setMode("asn");
       } else {
-        const res = await fetch(`https://ipwho.is/${encodeURIComponent(query.trim())}`);
+        const res = await fetch(`https://ipapi.co/${encodeURIComponent(query.trim())}/json/`);
         const json = await res.json();
-        if (!json.success) throw new Error(json.message || "Lookup failed");
+        if (json.error) throw new Error(json.reason || "Lookup failed");
         setData(json);
         setMode("ip");
       }
@@ -32,8 +32,8 @@ export default function ASNLookup() {
     } finally { setLoading(false); }
   }
 
-  const conn = data?.connection as Record<string, unknown> | undefined;
   const asnData = (data?.data || data) as Record<string, unknown> | undefined;
+  const isp = mode === "ip" ? (data?.org as string)?.replace(/^AS\d+\s*/, "") || "" : "";
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 24px 80px" }}>
@@ -65,11 +65,11 @@ export default function ASNLookup() {
             <tbody>
               {mode === "ip" ? (
                 [
-                  ["IP Address", data.ip as string, "#00d4ff"],
-                  ["ASN", conn?.asn ? `AS${conn.asn}` : undefined, "#7c3aed"],
-                  ["ISP", conn?.isp as string],
-                  ["Organization", conn?.org as string],
-                  ["Country", data.country as string],
+                  ["IP Address",   data.ip as string,  "#00d4ff"],
+                  ["ASN",          data.asn as string, "#7c3aed"],
+                  ["ISP",          isp],
+                  ["Organization", data.org as string],
+                  ["Country",      data.country_name as string],
                 ].filter(([, v]) => v).map(([label, value, color]) => (
                   <tr key={label as string}>
                     <td style={{ color: "#475569", fontWeight: 600, fontSize: 12, textTransform: "uppercase", width: 160 }}>{label as string}</td>
@@ -78,11 +78,11 @@ export default function ASNLookup() {
                 ))
               ) : (
                 [
-                  ["ASN", asnData?.asn ? `AS${asnData.asn}` : undefined, "#7c3aed"],
-                  ["Name", asnData?.name as string],
+                  ["ASN",         asnData?.asn ? `AS${asnData.asn}` : undefined, "#7c3aed"],
+                  ["Name",        asnData?.name as string],
                   ["Description", asnData?.description_short as string],
-                  ["Country", asnData?.country_code as string],
-                  ["Website", asnData?.website as string],
+                  ["Country",     asnData?.country_code as string],
+                  ["Website",     asnData?.website as string],
                 ].filter(([, v]) => v).map(([label, value, color]) => (
                   <tr key={label as string}>
                     <td style={{ color: "#475569", fontWeight: 600, fontSize: 12, textTransform: "uppercase", width: 160 }}>{label as string}</td>

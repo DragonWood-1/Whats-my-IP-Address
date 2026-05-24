@@ -28,25 +28,22 @@ export default function Traceroute() {
       const targetIP: string | undefined = dnsData.Answer?.[0]?.data;
       if (!targetIP) throw new Error("Could not resolve hostname");
 
-      // Step 2: geolocate the target
-      const geoRes = await fetch(`https://ipwho.is/${targetIP}`);
-      const geoData = await geoRes.json();
-      const conn = geoData.connection as Record<string, unknown> | undefined;
+      // Step 2: geolocate the target and ourselves in parallel
+      const [geoTarget, geoSelf] = await Promise.all([
+        fetch(`https://ipapi.co/${targetIP}/json/`).then((r) => r.json()),
+        fetch("https://ipapi.co/json/").then((r) => r.json()),
+      ]);
 
-      // Step 3: geolocate ourselves
-      const selfRes = await fetch("https://ipwho.is/");
-      const selfData = await selfRes.json();
-      const selfConn = selfData.connection as Record<string, unknown> | undefined;
+      const targetISP = (geoTarget.org as string)?.replace(/^AS\d+\s*/, "") || "";
 
       const simulatedHops: Hop[] = [
-        { hop: 1, ip: selfData.ip, hostname: null, location: `${selfData.city || ""} ${selfData.country || ""}`.trim() + " — Your Location", latency: Math.round(Math.random() * 2 + 0.5) },
+        { hop: 1, ip: geoSelf.ip, hostname: null, location: `${geoSelf.city || ""} ${geoSelf.country_name || ""}`.trim() + " — Your Location", latency: Math.round(Math.random() * 2 + 0.5) },
         { hop: 2, ip: null, hostname: null, location: "ISP Edge Router", latency: Math.round(Math.random() * 5 + 3) },
         { hop: 3, ip: null, hostname: null, location: "Internet Backbone", latency: Math.round(Math.random() * 20 + 15) },
-        { hop: 4, ip: null, hostname: null, location: `${conn?.isp || "ISP"} Network`, latency: Math.round(Math.random() * 20 + 30) },
-        { hop: 5, ip: targetIP, hostname: domain, location: `${geoData.city || ""} ${geoData.country || ""}`.trim() + ` — ${conn?.isp || ""}`, latency: Math.round(Math.random() * 30 + 50) },
+        { hop: 4, ip: null, hostname: null, location: `${targetISP || "ISP"} Network`, latency: Math.round(Math.random() * 20 + 30) },
+        { hop: 5, ip: targetIP, hostname: domain, location: `${geoTarget.city || ""} ${geoTarget.country_name || ""}`.trim() + ` — ${targetISP || ""}`, latency: Math.round(Math.random() * 30 + 50) },
       ];
 
-      // Reveal hops one by one for UX effect
       for (let i = 0; i < simulatedHops.length; i++) {
         await new Promise((r) => setTimeout(r, 400));
         setHops((prev) => [...prev, simulatedHops[i]]);
