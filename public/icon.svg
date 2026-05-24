@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050b14"/>
+      <stop offset="100%" style="stop-color:#0a1628"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff"/>
+      <stop offset="100%" style="stop-color:#00ff88"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <rect x="40" y="40" width="432" height="432" rx="72" fill="none" stroke="url(#accent)" stroke-width="4" opacity="0.3"/>
+  <!-- IP letters -->
+  <text x="256" y="300" font-family="Arial Black, sans-serif" font-size="200" font-weight="900" text-anchor="middle" fill="url(#accent)">IP</text>
+  <!-- Grid lines -->
+  <line x1="80" y1="80" x2="432" y2="80" stroke="#00d4ff" stroke-width="1" opacity="0.15"/>
+  <line x1="80" y1="432" x2="432" y2="432" stroke="#00d4ff" stroke-width="1" opacity="0.15"/>
+  <line x1="80" y1="80" x2="80" y2="432" stroke="#00d4ff" stroke-width="1" opacity="0.15"/>
+  <line x1="432" y1="80" x2="432" y2="432" stroke="#00d4ff" stroke-width="1" opacity="0.15"/>
+</svg>
