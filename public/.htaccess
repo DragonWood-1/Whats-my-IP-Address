@@ -1,32 +1,20 @@
-Options -MultiViews
 RewriteEngine On
 
-# Force HTTPS — check both %{HTTPS} and X-Forwarded-Proto (Hostinger uses a
-# load balancer that terminates SSL, so %{HTTPS} is always "off" internally)
+# Force HTTPS (Hostinger uses load balancer SSL termination, check X-Forwarded-Proto)
 RewriteCond %{HTTPS} off
 RewriteCond %{HTTP:X-Forwarded-Proto} !https
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Serve pre-built HTML pages (trailing slash = directory index)
-DirectoryIndex index.html
-
-# If request is for an existing file, serve it directly
+# Serve existing files directly
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
-# If request is for an existing directory, serve its index.html
+# Serve existing directories (Next.js trailingSlash generates dir/index.html)
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Fallback: send everything else to index.html (client-side routing)
+# Everything else falls back to index.html
 RewriteRule ^ /index.html [L]
-
-# Security headers
-<IfModule mod_headers.c>
-  Header always set X-Content-Type-Options "nosniff"
-  Header always set X-Frame-Options "SAMEORIGIN"
-  Header always set Referrer-Policy "strict-origin-when-cross-origin"
-</IfModule>
 
 # Cache static assets
 <IfModule mod_expires.c>
