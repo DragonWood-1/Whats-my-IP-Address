@@ -16,7 +16,7 @@ interface GeoData {
   org: string;           // e.g. "AS15169 Google LLC"
   continent_code: string;
   error?: boolean;
-  detail?: string;
+  reason?: string;
 }
 
 interface SecData {
@@ -33,7 +33,7 @@ export default function WhatIsMyIP() {
     fetch("https://ipapi.co/json/")
       .then((r) => r.json())
       .then(async (d: GeoData) => {
-        if (d.error) throw new Error(d.detail || "Failed");
+        if (d.error) throw new Error(d.reason || "Failed");
         setGeo(d);
         // Best-effort security check
         try {

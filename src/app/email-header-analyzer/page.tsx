@@ -15,6 +15,13 @@ interface ReceivedHop {
   date: string | null;
 }
 
+interface ParsedHeaders {
+  summary: Record<string, string | null>;
+  receivedChain: ReceivedHop[];
+  spamIndicators: SpamIndicator[];
+  allHeaders: Record<string, string[]>;
+}
+
 const SAMPLE_HEADERS = `Received: from mail.example.com (mail.example.com [203.0.113.1])
         by mx.google.com with ESMTPS id x1si1234.2023.10.01.12.00.00
         for <user@gmail.com>; Sun, 01 Oct 2023 12:00:00 -0700
@@ -31,40 +38,105 @@ Subject: Test Email
 Date: Sun, 01 Oct 2023 19:00:00 +0000
 Message-ID: <12345@example.com>`;
 
+function parseHeaders(raw: string): ParsedHeaders {
+  // Unfold multi-line header values (RFC 2822: continuation lines start with whitespace)
+  const unfolded = raw.replace(/\r?\n([ \t])/g, " ");
+
+  const lines = unfolded.split(/\r?\n/);
+  const allHeaders: Record<string, string[]> = {};
+
+  for (const line of lines) {
+    if (!line.trim() || !line.includes(":")) continue;
+    const colon = line.indexOf(":");
+    const name = line.slice(0, colon).trim().toLowerCase();
+    const value = line.slice(colon + 1).trim();
+    if (!allHeaders[name]) allHeaders[name] = [];
+    allHeaders[name].push(value);
+  }
+
+  // Summary fields
+  const get = (key: string) => (allHeaders[key]?.[0] ?? null);
+  const summary: Record<string, string | null> = {
+    from: get("from"),
+    to: get("to"),
+    subject: get("subject"),
+    date: get("date"),
+    messageId: get("message-id"),
+    replyTo: get("reply-to"),
+    returnPath: get("return-path"),
+    xMailer: get("x-mailer"),
+    contentType: get("content-type"),
+  };
+
+  // Parse Received chain
+  const receivedRaw = allHeaders["received"] ?? [];
+  const receivedChain: ReceivedHop[] = receivedRaw.map((r, i) => {
+    const fromMatch = r.match(/from\s+([^\s(]+)/i);
+    const byMatch = r.match(/by\s+([^\s(]+)/i);
+    const ipMatch = r.match(/\[(\d{1,3}(?:\.\d{1,3}){3})\]/);
+    const dateMatch = r.match(/;\s*(.+)$/);
+    return {
+      hop: receivedRaw.length - i,
+      from: fromMatch?.[1] ?? null,
+      by: byMatch?.[1] ?? null,
+      ip: ipMatch?.[1] ?? null,
+      date: dateMatch?.[1]?.trim() ?? null,
+    };
+  }).reverse();
+
+  // Parse Authentication-Results for SPF/DKIM/DMARC
+  const authResults = (allHeaders["authentication-results"] ?? []).join(" ").toLowerCase();
+
+  function extractStatus(tag: string): { value: string; status: "ok" | "warn" | "fail" } {
+    const match = authResults.match(new RegExp(`${tag}=(pass|fail|neutral|none|softfail|temperror|permerror|hardfail|bestguesspass)`));
+    const val = match?.[1] ?? "none";
+    const status: "ok" | "warn" | "fail" =
+      val === "pass" || val === "bestguesspass" ? "ok" :
+      val === "none" || val === "neutral" ? "warn" : "fail";
+    return { value: val, status };
+  }
+
+  const spf = extractStatus("spf");
+  const dkim = extractStatus("dkim");
+  const dmarc = extractStatus("dmarc");
+
+  const spamIndicators: SpamIndicator[] = [
+    { label: "SPF", ...spf },
+    { label: "DKIM", ...dkim },
+    { label: "DMARC", ...dmarc },
+  ];
+
+  // Check for X-Spam-Status
+  const xSpam = get("x-spam-status");
+  if (xSpam) {
+    const isSpam = /^yes/i.test(xSpam);
+    spamIndicators.push({ label: "Spam Status", value: isSpam ? "spam" : "clean", status: isSpam ? "fail" : "ok" });
+  }
+
+  return { summary, receivedChain, spamIndicators, allHeaders };
+}
+
 export default function EmailHeaderAnalyzer() {
   const [rawHeaders, setRawHeaders] = useState("");
-  const [data, setData] = useState<{
-    summary: Record<string, string | null>;
-    receivedChain: ReceivedHop[];
-    spamIndicators: SpamIndicator[];
-    allHeaders: Record<string, string[]>;
-  } | null>(null);
+  const [data, setData] = useState<ParsedHeaders | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  async function analyze() {
+  function analyze() {
     if (!rawHeaders.trim()) return;
-    setLoading(true);
     setError("");
     setData(null);
     try {
-      const res = await fetch("/api/email-headers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ headers: rawHeaders }),
-      });
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      setData(json);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Analysis failed");
-    } finally {
-      setLoading(false);
+      const result = parseHeaders(rawHeaders);
+      if (Object.keys(result.allHeaders).length === 0) {
+        setError("No headers found. Paste the raw email headers (e.g. from Gmail → Show original).");
+        return;
+      }
+      setData(result);
+    } catch {
+      setError("Failed to parse headers. Make sure you pasted the raw email source.");
     }
   }
 
-  const statusColor = (s: "ok" | "warn" | "fail") =>
-    s === "ok" ? "#10b981" : s === "warn" ? "#f59e0b" : "#ef4444";
   const statusBadge = (s: "ok" | "warn" | "fail") =>
     s === "ok" ? "badge-green" : s === "warn" ? "badge-yellow" : "badge-red";
 
@@ -99,8 +171,8 @@ export default function EmailHeaderAnalyzer() {
           onChange={(e) => setRawHeaders(e.target.value)}
         />
         <div style={{ marginTop: 12 }}>
-          <button className="cyber-btn" onClick={analyze} disabled={loading}>
-            {loading ? "Analyzing..." : "Analyze Headers"}
+          <button className="cyber-btn" onClick={analyze}>
+            Analyze Headers
           </button>
         </div>
       </div>
@@ -111,16 +183,8 @@ export default function EmailHeaderAnalyzer() {
         </div>
       )}
 
-      {loading && (
-        <div style={{ textAlign: "center", padding: 40, color: "#94a3b8" }}>
-          <div className="spinner" style={{ margin: "0 auto 16px" }} />
-          <div>Parsing headers...</div>
-        </div>
-      )}
-
-      {data && !loading && (
+      {data && (
         <div style={{ display: "grid", gap: 16 }}>
-          {/* Spam indicators */}
           {data.spamIndicators.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
               {data.spamIndicators.map((ind) => (
@@ -134,7 +198,6 @@ export default function EmailHeaderAnalyzer() {
             </div>
           )}
 
-          {/* Summary */}
           <div className="cyber-card" style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "16px 24px", borderBottom: "1px solid #1e3a5f" }}>
               <h2 style={{ color: "#e2e8f0", fontSize: 16, fontWeight: 700 }}>Email Summary</h2>
@@ -151,7 +214,6 @@ export default function EmailHeaderAnalyzer() {
             </table>
           </div>
 
-          {/* Received chain */}
           {data.receivedChain.length > 0 && (
             <div className="cyber-card" style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ padding: "16px 24px", borderBottom: "1px solid #1e3a5f" }}>
