@@ -1,20 +1,22 @@
+# Serve index.html as the directory index (Hostinger defaults to index.php,
+# which doesn't exist here — without this a static site returns 403)
+DirectoryIndex index.html
+
 RewriteEngine On
 
-# Force HTTPS (Hostinger uses load balancer SSL termination, check X-Forwarded-Proto)
+# Force HTTPS (Hostinger terminates SSL at its load balancer, so %{HTTPS} is
+# always "off" internally — also check X-Forwarded-Proto to avoid a loop)
 RewriteCond %{HTTPS} off
 RewriteCond %{HTTP:X-Forwarded-Proto} !https
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Serve existing files directly
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
-
-# Serve existing directories (Next.js trailingSlash generates dir/index.html)
+# Serve existing files and directories directly
+RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Everything else falls back to index.html
-RewriteRule ^ /index.html [L]
+# Everything else falls back to the root index.html (relative, no leading slash)
+RewriteRule ^ index.html [L]
 
 # Cache static assets
 <IfModule mod_expires.c>
