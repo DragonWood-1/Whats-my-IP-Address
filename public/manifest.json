@@ -1,0 +1,55 @@
+{
+  "name": "ip-space.com – Network Tools",
+  "short_name": "ip-space",
+  "description": "Free IP lookup, DNS checker, Whois, SSL, port scanner and 16+ network tools",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#050b14",
+  "theme_color": "#00d4ff",
+  "categories": ["utilities", "productivity"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "What Is My IP",
+      "short_name": "My IP",
+      "url": "/what-is-my-ip",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "IP Lookup",
+      "short_name": "IP Lookup",
+      "url": "/ip-lookup",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "DNS Checker",
+      "short_name": "DNS",
+      "url": "/dns-checker",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Whois Lookup",
+      "short_name": "Whois",
+      "url": "/whois-lookup",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ]
+}
