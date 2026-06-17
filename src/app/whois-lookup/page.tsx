@@ -57,7 +57,7 @@ export default function WhoisLookup() {
             <div style={{ padding: "16px 24px", borderBottom: "1px solid #1e3a5f" }}><h2 style={{ color: "#e2e8f0", fontSize: 16, fontWeight: 700 }}>Domain Information</h2></div>
             <table className="data-table">
               <tbody>
-                {[["Domain", (data.ldh_name || data.name || data.handle) as string, "#00ff88"], ["Handle", data.handle as string]].filter(([, v]) => v).map(([label, value, color]) => (
+                {[["Domain", (data.ldhName || data.name || data.handle) as string, "#00ff88"], ["Handle", data.handle as string]].filter(([, v]) => v).map(([label, value, color]) => (
                   <tr key={label as string}>
                     <td style={{ color: "#475569", fontWeight: 600, fontSize: 12, textTransform: "uppercase", width: 160 }}>{label as string}</td>
                     <td style={{ color: (color as string) || "#e2e8f0", fontFamily: "monospace", fontSize: 14 }}>{value as string}</td>

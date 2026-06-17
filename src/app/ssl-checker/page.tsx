@@ -22,9 +22,20 @@ export default function SSLChecker() {
     setLoading(true); setError(""); setCerts(null);
     try {
       const domain = host.trim().replace(/^https?:\/\//, "").split("/")[0];
-      const res = await fetch(`https://crt.sh/?q=${encodeURIComponent(domain)}&output=json`);
-      if (!res.ok) throw new Error("crt.sh lookup failed");
-      const raw: CertInfo[] = await res.json();
+      const target = `https://crt.sh/?q=${encodeURIComponent(domain)}&output=json`;
+      // crt.sh does not send CORS headers, so a direct browser fetch is blocked.
+      // Try direct first (in case that ever changes), then fall back to a CORS proxy.
+      let raw: CertInfo[] | null = null;
+      try {
+        const res = await fetch(target);
+        if (res.ok) raw = await res.json();
+      } catch { /* CORS / network — fall through to proxy */ }
+      if (!raw) {
+        const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
+        const res = await fetch(proxied);
+        if (!res.ok) throw new Error("crt.sh lookup failed");
+        raw = await res.json();
+      }
       setCerts(Array.isArray(raw) ? raw.slice(0, 10) : []);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "SSL check failed");
